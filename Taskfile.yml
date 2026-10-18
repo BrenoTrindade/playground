@@ -1,0 +1,36 @@
+version: '3'
+
+tasks:
+  doctor:
+    desc: "Check presence of all required developer tools"
+    cmds:
+      - powershell -ExecutionPolicy Bypass -File ./scripts/doctor.ps1
+
+  tf:init:
+    desc: "Initialize Terraform"
+    dir: terraform/environments/local
+    cmds:
+      - terraform init
+
+  tf:plan:
+    desc: "Plan local infrastructure"
+    dir: terraform/environments/local
+    cmds:
+      - terraform plan
+
+  cluster:up:
+    desc: "Provision Kind cluster and setup local environment"
+    dir: terraform/environments/local
+    cmds:
+      - terraform apply -auto-approve
+
+  cluster:down:
+    desc: "Destroy Kind cluster"
+    dir: terraform/environments/local
+    cmds:
+      - terraform destroy -auto-approve
+
+  gitops:reconcile:
+    desc: "Force Flux CD reconciliation"
+    cmds:
+      - flux reconcile kustomization root-sync --with-source
