@@ -42,3 +42,5 @@ age.key
 kubeconfig
 kubeconfig.yaml
 *.kubeconfig
+*-config
+
