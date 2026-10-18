@@ -34,3 +34,13 @@ tasks:
     desc: "Force Flux CD reconciliation"
     cmds:
       - flux reconcile kustomization root-sync --with-source
+
+  apps:build-rust:
+    desc: "Build api-rust Docker image"
+    cmds:
+      - docker build -t api-rust:v1 services/api-rust
+
+  apps:load-rust:
+    desc: "Load api-rust Docker image into Kind cluster"
+    cmds:
+      - kind load docker-image api-rust:v1 --name playground-local

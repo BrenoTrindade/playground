@@ -1,0 +1,60 @@
+use sqlx::{postgres::PgPoolOptions, PgPool};
+use std::time::Duration;
+use tracing::info;
+
+pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
+    info!("Connecting to PostgreSQL connection pool...");
+    let pool = PgPoolOptions::new()
+        .max_connections(25)
+        .min_connections(5)
+        .acquire_timeout(Duration::from_secs(5))
+        .idle_timeout(Duration::from_secs(600))
+        .connect(database_url)
+        .await?;
+
+    info!("Initializing Ledger database schema...");
+    init_schema(&pool).await?;
+
+    Ok(pool)
+}
+
+async fn init_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS accounts (
+            id UUID PRIMARY KEY,
+            account_number VARCHAR(32) NOT NULL UNIQUE,
+            holder_name VARCHAR(128) NOT NULL,
+            account_type VARCHAR(16) NOT NULL,
+            status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS transactions (
+            id UUID PRIMARY KEY,
+            idempotency_key VARCHAR(64) NOT NULL UNIQUE,
+            description VARCHAR(255) NOT NULL,
+            posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS ledger_entries (
+            id UUID PRIMARY KEY,
+            transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+            account_id UUID NOT NULL REFERENCES accounts(id),
+            direction VARCHAR(8) NOT NULL,
+            amount BIGINT NOT NULL CHECK (amount > 0),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_ledger_entries_account_id ON ledger_entries (account_id);
+        CREATE INDEX IF NOT EXISTS idx_ledger_entries_created_at ON ledger_entries (created_at);
+        CREATE INDEX IF NOT EXISTS idx_transactions_posted_at ON transactions (posted_at);
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    info!("Database schema initialized successfully.");
+    Ok(())
+}
