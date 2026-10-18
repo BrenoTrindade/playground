@@ -1,0 +1,44 @@
+# OS Files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Rust
+**/target/
+**/*.rs.bk
+Cargo.lock
+
+# .NET / C#
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# SOPS / Secrets
+*.decrypted.*
+*.key
+age.key
+
+# Kind / Kubeconfig
+kubeconfig
+kubeconfig.yaml
+*.kubeconfig
