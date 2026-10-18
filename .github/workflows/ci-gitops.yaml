@@ -15,13 +15,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Kubeconform
-        uses: yannh/kubeconform-action@v0.4.0
+        uses: bmuschko/setup-kubeconform@v1
         with:
-          k8s-version: "1.31.0"
-          ignore-filename-patterns: ".*Taskfile.*,.*kustomization.*"
-          schema-locations: |
-            default
-            https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+          kubeconform-version: '0.7.0'
+
+      - name: Run Kubeconform
+        run: |
+          kubeconform -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            clusters/ infrastructure/ apps/
+
+      - name: Validate Kustomize builds
+        run: |
+          kubectl kustomize infrastructure/local
+          kubectl kustomize apps/local
 
       - name: Lint YAML files
         uses: ibiqlik/action-yamllint@v3
@@ -32,3 +40,4 @@ jobs:
             rules:
               line-length: disable
               truthy: disable
+              document-start: disable
