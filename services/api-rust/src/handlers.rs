@@ -192,8 +192,8 @@ pub async fn get_account_balance(
     let row: (Option<i64>, Option<i64>) = sqlx::query_as(
         r#"
         SELECT 
-            COALESCE(SUM(CASE WHEN direction = 'DEBIT' THEN amount ELSE 0 END), 0) AS total_debits,
-            COALESCE(SUM(CASE WHEN direction = 'CREDIT' THEN amount ELSE 0 END), 0) AS total_credits
+            COALESCE(SUM(CASE WHEN direction = 'DEBIT' THEN amount ELSE 0 END), 0)::bigint AS total_debits,
+            COALESCE(SUM(CASE WHEN direction = 'CREDIT' THEN amount ELSE 0 END), 0)::bigint AS total_credits
         FROM ledger_entries
         WHERE account_id = $1
         "#,

@@ -19,7 +19,11 @@ pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
 }
 
 async fn init_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
-    sqlx::query(
+    // NOTE: `raw_sql` uses the simple query protocol, which allows sending
+    // multiple DDL statements in a single round-trip. `sqlx::query` would use
+    // the extended protocol (prepared statement) and Postgres rejects it with
+    // "cannot insert multiple commands into a prepared statement" (42601).
+    sqlx::raw_sql(
         r#"
         CREATE TABLE IF NOT EXISTS accounts (
             id UUID PRIMARY KEY,
