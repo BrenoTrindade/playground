@@ -1,0 +1,21 @@
+---
+# yamllint configuration for the Engineering Playground.
+#
+# Usage (locally, without a Python install):
+#   docker run --rm -v "$PWD:/data" -w /data python:3.12-slim \
+#     sh -c "pip install -q yamllint && yamllint -c .yamllint.yaml ."
+extends: default
+
+rules:
+  # Long lines are common in Kubernetes manifests (image refs, annotations).
+  line-length: disable
+  # Kubernetes manifests legitimately use `on:`/`yes` as plain strings.
+  truthy: disable
+  # Multi-document manifests (---) are the norm; requiring a leading --- is noise.
+  document-start: disable
+  # Kubernetes upstream manifests (and many Helm charts) do not indent
+  # sequences under their key. Accept BOTH styles instead of reformatting
+  # vendored third-party YAML.
+  indentation:
+    spaces: consistent
+    indent-sequences: whatever

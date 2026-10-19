@@ -2,9 +2,9 @@ name: CI GitOps Validation
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   kubeconform:
@@ -35,9 +35,4 @@ jobs:
         uses: ibiqlik/action-yamllint@v3
         with:
           file_or_dir: "infrastructure/ apps/ clusters/"
-          config_data: |
-            extends: default
-            rules:
-              line-length: disable
-              truthy: disable
-              document-start: disable
+          config_file: .yamllint.yaml
