@@ -23,8 +23,20 @@ async fn init_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
     // multiple DDL statements in a single round-trip. `sqlx::query` would use
     // the extended protocol (prepared statement) and Postgres rejects it with
     // "cannot insert multiple commands into a prepared statement" (42601).
+    //
+    // The advisory lock serialises concurrent initialisation. When several
+    // replicas start against a fresh database they all run this block at the
+    // same time, and `CREATE TABLE IF NOT EXISTS` is *not* safe under
+    // concurrency: two sessions both see the table as missing, both try to
+    // create it, and one fails with
+    // "duplicate key value violates unique constraint pg_type_typname_nsp_index".
+    // The lock is transaction-scoped, so Postgres releases it when the implicit
+    // transaction of this simple query commits (or the session dies).
     sqlx::raw_sql(
         r#"
+        -- Arbitrary constant, unique to this schema initialisation.
+        SELECT pg_advisory_xact_lock(20261018);
+
         CREATE TABLE IF NOT EXISTS accounts (
             id UUID PRIMARY KEY,
             account_number VARCHAR(32) NOT NULL UNIQUE,
