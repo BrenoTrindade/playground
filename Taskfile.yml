@@ -1,46 +1,81 @@
 version: '3'
 
+vars:
+  IMAGE: localhost:5001/api-rust:v1
+
 tasks:
   doctor:
     desc: "Check presence of all required developer tools"
     cmds:
       - powershell -ExecutionPolicy Bypass -File ./scripts/doctor.ps1
 
+  # ---------------------------------------------------------------- infrastructure
+
   tf:init:
-    desc: "Initialize Terraform"
+    desc: "Initialize Terraform (downloads the kind and docker providers)"
     dir: terraform/environments/local
     cmds:
       - terraform init
 
   tf:plan:
-    desc: "Plan local infrastructure"
+    desc: "Plan local infrastructure (Kind cluster + local registry)"
     dir: terraform/environments/local
     cmds:
       - terraform plan
 
-  cluster:up:
-    desc: "Provision Kind cluster and setup local environment"
+  tf:apply:
+    desc: "Apply local infrastructure"
     dir: terraform/environments/local
     cmds:
       - terraform apply -auto-approve
 
-  cluster:down:
-    desc: "Destroy Kind cluster"
+  tf:destroy:
+    desc: "Destroy local infrastructure"
     dir: terraform/environments/local
     cmds:
       - terraform destroy -auto-approve
+
+  cluster:up:
+    desc: "Provision the Kind cluster and local registry, then hand the cluster over to GitOps"
+    cmds:
+      - task: tf:apply
+      - task: gitops:bootstrap
+
+  cluster:down:
+    desc: "Destroy the Kind cluster and the local registry"
+    cmds:
+      - task: tf:destroy
+
+  # ---------------------------------------------------------------- gitops
+
+  gitops:bootstrap:
+    desc: "Install Flux from the manifests versioned in Git (idempotent)"
+    cmds:
+      - kubectl apply -f clusters/local/flux-system/gotk-components.yaml
+      - kubectl --namespace flux-system wait --for=condition=Available --timeout=5m deployment --all
+      - kubectl apply -f clusters/local/flux-system/gotk-sync.yaml
 
   gitops:reconcile:
     desc: "Force Flux CD reconciliation"
     cmds:
       - flux reconcile kustomization root-sync --with-source
 
-  apps:build-rust:
-    desc: "Build api-rust Docker image"
-    cmds:
-      - docker build -t api-rust:v1 services/api-rust
+  # ---------------------------------------------------------------- applications
 
-  apps:load-rust:
-    desc: "Load api-rust Docker image into Kind cluster"
+  apps:build-rust:
+    desc: "Build the api-rust image, tagged for the local registry"
     cmds:
-      - kind load docker-image api-rust:v1 --name playground-local
+      - docker build -t {{.IMAGE}} services/api-rust
+
+  apps:push-rust:
+    desc: "Push the api-rust image to the local registry"
+    cmds:
+      - docker push {{.IMAGE}}
+
+  apps:deploy-rust:
+    desc: "Build and push api-rust, then roll the Deployment"
+    cmds:
+      - task: apps:build-rust
+      - task: apps:push-rust
+      - kubectl --namespace apps rollout restart deployment/api-rust
+      - kubectl --namespace apps rollout status deployment/api-rust --timeout=120s

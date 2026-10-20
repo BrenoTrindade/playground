@@ -1,0 +1,15 @@
+# Discovery document for the local image registry running next to the Kind
+# nodes (see https://kind.sigs.k8s.io/docs/user/local-registry/).
+#
+# It is pure convention metadata: tools such as Tilt, Skaffold and ko read it
+# to find out that `localhost:5001` is a registry they can push to from the
+# host without any authentication or TLS.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: "localhost:5001"
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
