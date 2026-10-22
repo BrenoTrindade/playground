@@ -88,12 +88,14 @@ spec:
       # Secret (SOPS / ExternalSecrets), never from Git.
       adminUser: admin
       adminPassword: admin
+      # 256Mi is not enough: Grafana 13 keeps a bleve search index in memory for
+      # its unified storage and gets OOMKilled while building it.
       resources:
         requests:
           cpu: 50m
-          memory: 128Mi
+          memory: 192Mi
         limits:
-          memory: 256Mi
+          memory: 512Mi
       # Dashboards are provisioned from ConfigMaps, not persisted in a volume.
       persistence:
         enabled: false
