@@ -6,6 +6,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use axum_prometheus::PrometheusMetricLayer;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tower_http::trace::TraceLayer;
@@ -36,12 +37,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Ledger API (Rust/Axum)...");
     let pool = db::create_pool(&database_url).await?;
 
+    // `pair()` registers a global metrics recorder and returns the middleware
+    // that observes every request plus the handle used to render the snapshot.
+    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+
     let app = Router::new()
         .route("/health", get(handlers::health))
+        .route("/metrics", get(|| async move { metric_handle.render() }))
         .route("/accounts", post(handlers::create_account).get(handlers::list_accounts))
         .route("/transactions", post(handlers::create_transaction))
         .route("/accounts/:id/balance", get(handlers::get_account_balance))
         .layer(TraceLayer::new_for_http())
+        // Outermost layer: measures the whole request, database round-trip
+        // included.
+        .layer(prometheus_layer)
         .with_state(pool);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

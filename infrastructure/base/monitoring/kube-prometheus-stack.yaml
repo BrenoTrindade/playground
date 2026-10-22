@@ -1,0 +1,108 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: "92.11.0"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: monitoring
+      interval: 24h
+  install:
+    crds: CreateReplace
+    timeout: 10m
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    timeout: 10m
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+  # Deliberately lean: this is a local learner cluster. Everything that is not
+  # needed to answer "how are my pods doing?" is switched off.
+  values:
+    # No pre-baked alerting rules (they reference metrics we do not scrape and
+    # cost memory in Prometheus).
+    defaultRules:
+      create: false
+    # No Alertmanager for now.
+    alertmanager:
+      enabled: false
+    # Kind runs the control-plane components bound to 127.0.0.1 inside the node
+    # container, so these endpoints are unreachable from a pod. Scraping them
+    # would only produce permanent "down" targets.
+    kubeEtcd:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeProxy:
+      enabled: false
+
+    kube-state-metrics:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 192Mi
+
+    prometheusOperator:
+      resources:
+        requests:
+          cpu: 20m
+          memory: 64Mi
+        limits:
+          memory: 192Mi
+
+    prometheus:
+      prometheusSpec:
+        # Short retention: the local cluster is disposable.
+        retention: 6h
+        scrapeInterval: 30s
+        evaluationInterval: 30s
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 512Mi
+        # By default the operator only picks up ServiceMonitors carrying
+        # `release: kube-prometheus-stack`. Opt out so any ServiceMonitor in the
+        # cluster is scraped - one less label to remember when adding a service.
+        serviceMonitorSelectorNilUsesHelmValues: false
+        podMonitorSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+        ruleSelectorNilUsesHelmValues: false
+
+    grafana:
+      # Local-only credentials. In a shared cluster this would come from a
+      # Secret (SOPS / ExternalSecrets), never from Git.
+      adminUser: admin
+      adminPassword: admin
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+      # Dashboards are provisioned from ConfigMaps, not persisted in a volume.
+      persistence:
+        enabled: false
+      sidecar:
+        dashboards:
+          searchNamespace: ALL
+      ingress:
+        enabled: true
+        ingressClassName: nginx
+        hosts:
+          - grafana.127.0.0.1.nip.io
+          - grafana.localhost

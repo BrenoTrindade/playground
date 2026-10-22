@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+resources:
+  - namespace.yaml
+  - helm-repository.yaml
+  - kube-prometheus-stack.yaml
+
+# The Grafana sidecar watches ConfigMaps labelled `grafana_dashboard: "1"` and
+# reloads them without a restart. The generator appends a content hash to the
+# name, so editing the JSON produces a new ConfigMap and Flux prunes the old one.
+configMapGenerator:
+  - name: grafana-dashboard-api-rust
+    files:
+      - dashboards/api-rust.json
+    options:
+      labels:
+        grafana_dashboard: "1"

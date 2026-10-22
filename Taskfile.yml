@@ -60,6 +60,13 @@ tasks:
     cmds:
       - flux reconcile kustomization root-sync --with-source
 
+  # ---------------------------------------------------------------- monitoring
+
+  monitoring:grafana:
+    desc: "Port-forward Grafana to http://localhost:3000 (admin/admin)"
+    cmds:
+      - kubectl --namespace monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
+
   # ---------------------------------------------------------------- applications
 
   apps:build-rust:
